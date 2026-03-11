@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Search, LayoutGrid, List, Plus, X, ChevronUp, ChevronDown, Users, TrendingUp, Clock } from 'lucide-react';
+import { Search, LayoutGrid, List, Plus, X, ChevronUp, ChevronDown, Users, TrendingUp, Clock, Globe, Linkedin, ExternalLink } from 'lucide-react';
 import { fetchContacts, fetchStages, updateContact, createContact, deleteContact } from './lib/api';
 import { getDaysSinceColor, CATEGORY_COLORS, CATEGORIES } from './lib/constants';
 import './index.css';
@@ -401,6 +401,36 @@ function DetailPanel({ contact, stages, section, onClose, onSave, onDelete }) {
               </select>
             </div>
           )}
+          <div className="field-row">
+            <div className="field-group">
+              <div className="field-label"><Globe size={13} style={{ marginRight: 4, verticalAlign: -2 }} />Website</div>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <input className="field-input" value={form.website || ''} onChange={e => set('website', e.target.value)}
+                  placeholder="https://company.com" style={{ flex: 1 }} />
+                {form.website && (
+                  <a href={form.website.startsWith('http') ? form.website : `https://${form.website}`}
+                    target="_blank" rel="noopener noreferrer"
+                    style={{ color: 'var(--accent)', flexShrink: 0 }}>
+                    <ExternalLink size={16} />
+                  </a>
+                )}
+              </div>
+            </div>
+            <div className="field-group">
+              <div className="field-label"><Linkedin size={13} style={{ marginRight: 4, verticalAlign: -2 }} />LinkedIn</div>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <input className="field-input" value={form.linkedin || ''} onChange={e => set('linkedin', e.target.value)}
+                  placeholder="https://linkedin.com/in/..." style={{ flex: 1 }} />
+                {form.linkedin && (
+                  <a href={form.linkedin.startsWith('http') ? form.linkedin : `https://${form.linkedin}`}
+                    target="_blank" rel="noopener noreferrer"
+                    style={{ color: '#0A66C2', flexShrink: 0 }}>
+                    <ExternalLink size={16} />
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
           <div className="field-group">
             <div className="field-label">Next Step / Follow-up</div>
             <input className="field-input" value={form.next_step || ''} onChange={e => set('next_step', e.target.value)}
@@ -446,6 +476,8 @@ function DetailPanel({ contact, stages, section, onClose, onSave, onDelete }) {
             role_title: form.role_title,
             email: form.email,
             phone: form.phone,
+            website: form.website,
+            linkedin: form.linkedin,
             stage_id: form.stage_id,
             category: form.category,
             next_step: form.next_step,
@@ -460,6 +492,7 @@ function DetailPanel({ contact, stages, section, onClose, onSave, onDelete }) {
 function AddContactModal({ section, stages, onClose, onCreate }) {
   const [form, setForm] = useState({
     full_name: '', company: '', role_title: '', email: '', phone: '',
+    website: '', linkedin: '',
     pipeline_type: section.pipelineType || null,
     stage_id: null, category: section.pipelineType ? (section.pipelineType === 'investor' ? 'Investor' : 'Sales/BD') : 'Other',
     next_step: '', user_notes: '', source: 'manual',
@@ -492,6 +525,18 @@ function AddContactModal({ section, stages, onClose, onCreate }) {
             <div className="field-group">
               <div className="field-label">Email</div>
               <input className="field-input" type="email" value={form.email} onChange={e => set('email', e.target.value)} />
+            </div>
+          </div>
+          <div className="field-row">
+            <div className="field-group">
+              <div className="field-label">Website</div>
+              <input className="field-input" value={form.website} onChange={e => set('website', e.target.value)}
+                placeholder="https://company.com" />
+            </div>
+            <div className="field-group">
+              <div className="field-label">LinkedIn</div>
+              <input className="field-input" value={form.linkedin} onChange={e => set('linkedin', e.target.value)}
+                placeholder="https://linkedin.com/in/..." />
             </div>
           </div>
           {section.pipelineType && stages.length > 0 && (
