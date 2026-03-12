@@ -65,38 +65,47 @@ export default function RelationshipGraph({ onSelectContact }) {
     })();
   }, []);
 
-  // Track container dimensions with polling fallback
+  // Track container dimensions — keep trying until we get real values
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
+    let cancelled = false;
+    let rafId;
+    let observer;
 
     const updateDimensions = () => {
+      if (cancelled) return;
       const rect = container.getBoundingClientRect();
-      if (rect.width > 0 && rect.height > 0) {
+      const w = Math.floor(rect.width);
+      const h = Math.floor(rect.height);
+      if (w > 0 && h > 0) {
         setDimensions(prev => {
-          if (prev.width !== Math.floor(rect.width) || prev.height !== Math.floor(rect.height)) {
-            return { width: Math.floor(rect.width), height: Math.floor(rect.height) };
-          }
+          if (prev.width !== w || prev.height !== h) return { width: w, height: h };
           return prev;
         });
       }
     };
 
-    // Try immediately
-    updateDimensions();
+    // RAF loop until we get dimensions (handles CSS layout delay)
+    const pollUntilReady = () => {
+      if (cancelled) return;
+      const rect = container.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        updateDimensions();
+      } else {
+        rafId = requestAnimationFrame(pollUntilReady);
+      }
+    };
+    pollUntilReady();
 
-    // Use ResizeObserver
-    const observer = new ResizeObserver(() => updateDimensions());
+    // ResizeObserver for ongoing size changes
+    observer = new ResizeObserver(() => updateDimensions());
     observer.observe(container);
 
-    // Polling fallback in case ResizeObserver doesn't fire
-    const interval = setInterval(updateDimensions, 200);
-    const timeout = setTimeout(() => clearInterval(interval), 3000);
-
     return () => {
-      observer.disconnect();
-      clearInterval(interval);
-      clearTimeout(timeout);
+      cancelled = true;
+      if (rafId) cancelAnimationFrame(rafId);
+      observer?.disconnect();
     };
   }, []);
 
