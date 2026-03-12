@@ -76,6 +76,14 @@ function App() {
   return <AuthenticatedApp userEmail={userEmail} />;
 }
 
+function truncateNextStep(text, maxLen = 40) {
+  if (!text) return '—';
+  if (text.length <= maxLen) return text;
+  // Try to cut at a word boundary
+  const cut = text.lastIndexOf(' ', maxLen);
+  return text.slice(0, cut > 20 ? cut : maxLen) + '...';
+}
+
 function AuthenticatedApp({ userEmail }) {
   const [section, setSection] = useState('sales_bd');
   const [view, setView] = useState('table');
@@ -361,8 +369,8 @@ function TableView({ contacts, stages, section, onSelect, sortBy, SortIcon, onSo
                   ) : '—'}
                 </td>
                 <td>{c.last_interaction_type || '—'}</td>
-                <td style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {c.next_step || '—'}
+                <td className="next-step-cell">
+                  {c.next_step ? truncateNextStep(c.next_step) : '—'}
                 </td>
               </tr>
             );
@@ -409,7 +417,7 @@ function KanbanView({ contacts, stages, onSelect }) {
                   </div>
                   {c.next_step && (
                     <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text-secondary)', borderTop: '1px solid var(--border)', paddingTop: 8 }}>
-                      {c.next_step}
+                      {truncateNextStep(c.next_step, 60)}
                     </div>
                   )}
                 </div>
@@ -515,7 +523,7 @@ function DetailPanel({ contact, stages, section, onClose, onSave, onDelete }) {
           </div>
           <div className="field-group">
             <div className="field-label">Next Step / Follow-up</div>
-            <input className="field-input" value={form.next_step || ''} onChange={e => set('next_step', e.target.value)}
+            <textarea className="field-input next-step-textarea" value={form.next_step || ''} onChange={e => set('next_step', e.target.value)}
               placeholder="e.g., Schedule follow-up demo..." />
           </div>
           <div className="field-group">
