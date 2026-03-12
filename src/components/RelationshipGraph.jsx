@@ -65,16 +65,39 @@ export default function RelationshipGraph({ onSelectContact }) {
     })();
   }, []);
 
-  // Track container dimensions
+  // Track container dimensions with polling fallback
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    const observer = new ResizeObserver(entries => {
-      const { width, height } = entries[0].contentRect;
-      setDimensions({ width, height });
-    });
+
+    const updateDimensions = () => {
+      const rect = container.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        setDimensions(prev => {
+          if (prev.width !== Math.floor(rect.width) || prev.height !== Math.floor(rect.height)) {
+            return { width: Math.floor(rect.width), height: Math.floor(rect.height) };
+          }
+          return prev;
+        });
+      }
+    };
+
+    // Try immediately
+    updateDimensions();
+
+    // Use ResizeObserver
+    const observer = new ResizeObserver(() => updateDimensions());
     observer.observe(container);
-    return () => observer.disconnect();
+
+    // Polling fallback in case ResizeObserver doesn't fire
+    const interval = setInterval(updateDimensions, 200);
+    const timeout = setTimeout(() => clearInterval(interval), 3000);
+
+    return () => {
+      observer.disconnect();
+      clearInterval(interval);
+      clearTimeout(timeout);
+    };
   }, []);
 
   // Filter data
@@ -555,7 +578,7 @@ export default function RelationshipGraph({ onSelectContact }) {
 
       {/* SVG Canvas */}
       <div ref={containerRef} className="graph-canvas">
-        <svg ref={svgRef} width={dimensions.width} height={dimensions.height} />
+        <svg ref={svgRef} style={{ width: '100%', height: '100%', display: 'block' }} />
       </div>
 
       {/* Hover tooltip */}
