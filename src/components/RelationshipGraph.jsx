@@ -211,16 +211,16 @@ export default function RelationshipGraph({ onSelectContact }) {
     const maxStr = d3.max(edges, d => d.strength) || 1;
     const widthScale = d3.scaleLinear().domain([0.5, maxStr]).range([1, 5]).clamp(true);
 
-    // Force simulation
+    // Force simulation — tuned so all nodes stay visible
     const simulation = d3.forceSimulation(nodes)
       .force('link', d3.forceLink(edges).id(d => d.id).distance(d => {
-        return 120 - Math.min(d.strength * 8, 60);
+        return 100 - Math.min(d.strength * 6, 50);
       }).strength(d => Math.min(d.strength * 0.15, 0.8)))
-      .force('charge', d3.forceManyBody().strength(-300).distanceMax(400))
+      .force('charge', d3.forceManyBody().strength(-200).distanceMax(300))
       .force('center', d3.forceCenter(width / 2, height / 2))
-      .force('collision', d3.forceCollide().radius(d => radiusScale(d.connectionCount) + 8))
-      .force('x', d3.forceX(width / 2).strength(0.03))
-      .force('y', d3.forceY(height / 2).strength(0.03));
+      .force('collision', d3.forceCollide().radius(d => radiusScale(d.connectionCount) + 6))
+      .force('x', d3.forceX(width / 2).strength(0.08))
+      .force('y', d3.forceY(height / 2).strength(0.08));
 
     simulationRef.current = simulation;
 
@@ -370,7 +370,30 @@ export default function RelationshipGraph({ onSelectContact }) {
       }
     });
 
-    // Tick update
+    // Helper to zoom/pan so all nodes are visible
+    const zoomToFit = (animated = true) => {
+      const bounds = g.node().getBBox();
+      if (bounds.width === 0 || bounds.height === 0) return;
+      const padding = 60;
+      const scale = Math.min(
+        width / (bounds.width + padding * 2),
+        height / (bounds.height + padding * 2),
+        1.5
+      );
+      const tx = (width - bounds.width * scale) / 2 - bounds.x * scale;
+      const ty = (height - bounds.height * scale) / 2 - bounds.y * scale;
+      if (animated) {
+        svg.transition().duration(400).call(
+          zoom.transform,
+          d3.zoomIdentity.translate(tx, ty).scale(scale)
+        );
+      } else {
+        svg.call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
+      }
+    };
+
+    // Tick update + auto-fit during simulation
+    let tickCount = 0;
     simulation.on('tick', () => {
       link
         .attr('x1', d => d.source.x)
@@ -383,24 +406,14 @@ export default function RelationshipGraph({ onSelectContact }) {
         .attr('y', d => (d.source.y + d.target.y) / 2);
 
       node.attr('transform', d => `translate(${d.x},${d.y})`);
+
+      tickCount++;
+      // Fit view early so user sees all nodes immediately
+      if (tickCount === 30) zoomToFit(false);
     });
 
-    // Initial zoom to fit
-    simulation.on('end', () => {
-      const bounds = g.node().getBBox();
-      if (bounds.width === 0) return;
-      const scale = Math.min(
-        width / (bounds.width + 80),
-        height / (bounds.height + 80),
-        1.5
-      );
-      const tx = (width - bounds.width * scale) / 2 - bounds.x * scale;
-      const ty = (height - bounds.height * scale) / 2 - bounds.y * scale;
-      svg.transition().duration(500).call(
-        zoom.transform,
-        d3.zoomIdentity.translate(tx, ty).scale(scale)
-      );
-    });
+    // Final fit when simulation fully settles
+    simulation.on('end', () => zoomToFit(true));
 
     return () => simulation.stop();
   }, [graphData, dimensions, getFilteredData]);
