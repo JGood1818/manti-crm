@@ -428,6 +428,110 @@ textarea.field-input { min-height: 80px; resize: vertical; }
 .stat-value { font-size: 18px; font-weight: 600; }
 .stat-label { font-size: 12px; color: var(--text-secondary); }
 
+/* ========== Login Page ========== */
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #F9FAFB 0%, #E8F5E9 50%, #F3F4F6 100%);
+  padding: 24px;
+}
+
+.login-card {
+  background: var(--bg-primary);
+  border-radius: 16px;
+  padding: 48px 40px;
+  width: 400px;
+  max-width: 100%;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
+  text-align: center;
+}
+
+.login-logo {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: -0.5px;
+  margin-bottom: 8px;
+}
+.login-logo span { color: var(--text-primary); }
+
+.login-subtitle {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 32px;
+}
+
+.login-error {
+  background: #FFF5F5;
+  border: 1px solid #FED7D7;
+  color: #C53030;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  margin-bottom: 20px;
+  text-align: left;
+}
+
+.google-signin-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 24px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.google-signin-btn:hover {
+  background: var(--bg-secondary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+.google-signin-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.login-footer {
+  margin-top: 24px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+/* Access Denied */
+.access-denied-icon {
+  margin: 24px 0 16px;
+}
+.access-denied-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+.access-denied-message {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* Header user info */
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.user-email {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
 /* ========== Relationship Graph ========== */
 .graph-wrapper {
   flex: 1;

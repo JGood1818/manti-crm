@@ -1,8 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Search, LayoutGrid, List, Plus, X, ChevronUp, ChevronDown, Users, TrendingUp, Clock, Globe, Linkedin, ExternalLink, GitBranch } from 'lucide-react';
+import { Search, LayoutGrid, List, Plus, X, ChevronUp, ChevronDown, Users, TrendingUp, Clock, Globe, Linkedin, ExternalLink, GitBranch, LogOut } from 'lucide-react';
 import { fetchContacts, fetchStages, updateContact, createContact, deleteContact } from './lib/api';
 import { getDaysSinceColor, CATEGORY_COLORS, CATEGORIES } from './lib/constants';
+import { isEmailAllowed, signOut, getSession, onAuthStateChange } from './lib/auth';
 import RelationshipGraph from './components/RelationshipGraph';
+import LoginPage from './components/LoginPage';
+import AccessDenied from './components/AccessDenied';
 import './index.css';
 
 const SECTIONS = [
@@ -13,6 +16,67 @@ const SECTIONS = [
 ];
 
 function App() {
+  const [authState, setAuthState] = useState('loading'); // 'loading' | 'unauthenticated' | 'denied' | 'authenticated'
+  const [userEmail, setUserEmail] = useState(null);
+
+  useEffect(() => {
+    // Check existing session on mount
+    getSession().then(session => {
+      if (session?.user) {
+        const email = session.user.email;
+        setUserEmail(email);
+        if (isEmailAllowed(email)) {
+          setAuthState('authenticated');
+        } else {
+          setAuthState('denied');
+        }
+      } else {
+        setAuthState('unauthenticated');
+      }
+    }).catch(() => setAuthState('unauthenticated'));
+
+    // Listen for auth changes (login/logout)
+    const subscription = onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        const email = session.user.email;
+        setUserEmail(email);
+        if (isEmailAllowed(email)) {
+          setAuthState('authenticated');
+        } else {
+          setAuthState('denied');
+        }
+      } else if (event === 'SIGNED_OUT') {
+        setAuthState('unauthenticated');
+        setUserEmail(null);
+      }
+    });
+
+    return () => subscription?.unsubscribe();
+  }, []);
+
+  if (authState === 'loading') {
+    return (
+      <div className="login-page">
+        <div className="login-card">
+          <div className="login-logo">Manti<span>CRM</span></div>
+          <p className="login-subtitle">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (authState === 'unauthenticated') {
+    return <LoginPage />;
+  }
+
+  if (authState === 'denied') {
+    return <AccessDenied email={userEmail} />;
+  }
+
+  return <AuthenticatedApp userEmail={userEmail} />;
+}
+
+function AuthenticatedApp({ userEmail }) {
   const [section, setSection] = useState('sales_bd');
   const [view, setView] = useState('table');
   const [contacts, setContacts] = useState([]);
@@ -115,6 +179,12 @@ function App() {
                 onClick={() => setSection(s.id)}>{s.label}</button>
             ))}
           </nav>
+        </div>
+        <div className="header-right">
+          <span className="user-email">{userEmail}</span>
+          <button className="btn-secondary" onClick={signOut} style={{ padding: '6px 12px', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <LogOut size={14} /> Sign out
+          </button>
         </div>
       </header>
 
