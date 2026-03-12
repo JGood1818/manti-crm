@@ -1,13 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Search, LayoutGrid, List, Plus, X, ChevronUp, ChevronDown, Users, TrendingUp, Clock, Globe, Linkedin, ExternalLink } from 'lucide-react';
+import { Search, LayoutGrid, List, Plus, X, ChevronUp, ChevronDown, Users, TrendingUp, Clock, Globe, Linkedin, ExternalLink, GitBranch } from 'lucide-react';
 import { fetchContacts, fetchStages, updateContact, createContact, deleteContact } from './lib/api';
 import { getDaysSinceColor, CATEGORY_COLORS, CATEGORIES } from './lib/constants';
+import RelationshipGraph from './components/RelationshipGraph';
 import './index.css';
 
 const SECTIONS = [
   { id: 'sales_bd', label: 'Sales & BD', pipelineType: 'sales_bd' },
   { id: 'investor', label: 'Investor', pipelineType: 'investor' },
   { id: 'all', label: 'All Contacts', pipelineType: null },
+  { id: 'graph', label: 'Relationship Graph', pipelineType: null, isGraph: true },
 ];
 
 function App() {
@@ -116,85 +118,95 @@ function App() {
         </div>
       </header>
 
-      <div className="stats-bar">
-        <div className="stat">
-          <Users size={16} color="var(--accent)" />
-          <span className="stat-value">{totalContacts}</span>
-          <span className="stat-label">contacts</span>
-        </div>
-        {currentSection.pipelineType && (
-          <div className="stat">
-            <TrendingUp size={16} color="var(--accent)" />
-            <span className="stat-value">
-              {contacts.filter(c => c.pipeline_stages?.stage_number >= 4).length}
-            </span>
-            <span className="stat-label">in advanced stages</span>
+      {currentSection.isGraph ? (
+        <RelationshipGraph onSelectContact={(node) => {
+          // Find the full contact data to open detail panel
+          const fullContact = contacts.find(c => c.id === node.id);
+          if (fullContact) setSelectedContact(fullContact);
+        }} />
+      ) : (
+        <>
+          <div className="stats-bar">
+            <div className="stat">
+              <Users size={16} color="var(--accent)" />
+              <span className="stat-value">{totalContacts}</span>
+              <span className="stat-label">contacts</span>
+            </div>
+            {currentSection.pipelineType && (
+              <div className="stat">
+                <TrendingUp size={16} color="var(--accent)" />
+                <span className="stat-value">
+                  {contacts.filter(c => c.pipeline_stages?.stage_number >= 4).length}
+                </span>
+                <span className="stat-label">in advanced stages</span>
+              </div>
+            )}
+            <div className="stat">
+              <Clock size={16} color={avgDays > 30 ? 'var(--danger)' : 'var(--accent)'} />
+              <span className="stat-value">{Math.round(avgDays) || '—'}</span>
+              <span className="stat-label">avg days since contact</span>
+            </div>
           </div>
-        )}
-        <div className="stat">
-          <Clock size={16} color={avgDays > 30 ? 'var(--danger)' : 'var(--accent)'} />
-          <span className="stat-value">{Math.round(avgDays) || '—'}</span>
-          <span className="stat-label">avg days since contact</span>
-        </div>
-      </div>
 
-      <div className="toolbar">
-        <div className="toolbar-left">
-          <div className="search-box">
-            <Search size={16} />
-            <input placeholder="Search contacts..." value={search}
-              onChange={e => setSearch(e.target.value)} />
-            {search && <button style={{ background: 'none', border: 'none', padding: 0 }}
-              onClick={() => setSearch('')}><X size={14} /></button>}
-          </div>
-          {currentSection.pipelineType && stages.length > 0 && (
-            <select className="filter-select" value={stageFilter}
-              onChange={e => setStageFilter(e.target.value)}>
-              <option value="">All Stages</option>
-              {stages.map(s => (
-                <option key={s.id} value={s.id}>{s.stage_number}. {s.stage_name}</option>
-              ))}
-            </select>
-          )}
-          {!currentSection.pipelineType && (
-            <select className="filter-select" value={categoryFilter}
-              onChange={e => setCategoryFilter(e.target.value)}>
-              <option value="">All Categories</option>
-              {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-          )}
-        </div>
-        <div className="toolbar-right">
-          {currentSection.pipelineType && (
-            <div className="view-toggle">
-              <button className={`view-btn ${view === 'table' ? 'active' : ''}`}
-                onClick={() => setView('table')}>
-                <List size={14} /> Table
-              </button>
-              <button className={`view-btn ${view === 'kanban' ? 'active' : ''}`}
-                onClick={() => setView('kanban')}>
-                <LayoutGrid size={14} /> Board
+          <div className="toolbar">
+            <div className="toolbar-left">
+              <div className="search-box">
+                <Search size={16} />
+                <input placeholder="Search contacts..." value={search}
+                  onChange={e => setSearch(e.target.value)} />
+                {search && <button style={{ background: 'none', border: 'none', padding: 0 }}
+                  onClick={() => setSearch('')}><X size={14} /></button>}
+              </div>
+              {currentSection.pipelineType && stages.length > 0 && (
+                <select className="filter-select" value={stageFilter}
+                  onChange={e => setStageFilter(e.target.value)}>
+                  <option value="">All Stages</option>
+                  {stages.map(s => (
+                    <option key={s.id} value={s.id}>{s.stage_number}. {s.stage_name}</option>
+                  ))}
+                </select>
+              )}
+              {!currentSection.pipelineType && !currentSection.isGraph && (
+                <select className="filter-select" value={categoryFilter}
+                  onChange={e => setCategoryFilter(e.target.value)}>
+                  <option value="">All Categories</option>
+                  {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              )}
+            </div>
+            <div className="toolbar-right">
+              {currentSection.pipelineType && (
+                <div className="view-toggle">
+                  <button className={`view-btn ${view === 'table' ? 'active' : ''}`}
+                    onClick={() => setView('table')}>
+                    <List size={14} /> Table
+                  </button>
+                  <button className={`view-btn ${view === 'kanban' ? 'active' : ''}`}
+                    onClick={() => setView('kanban')}>
+                    <LayoutGrid size={14} /> Board
+                  </button>
+                </div>
+              )}
+              <button className="btn-primary" onClick={() => setShowAddModal(true)}>
+                <Plus size={14} /> Add Contact
               </button>
             </div>
-          )}
-          <button className="btn-primary" onClick={() => setShowAddModal(true)}>
-            <Plus size={14} /> Add Contact
-          </button>
-        </div>
-      </div>
+          </div>
 
-      {loading ? (
-        <div className="empty-state"><p>Loading...</p></div>
-      ) : contacts.length === 0 ? (
-        <div className="empty-state">
-          <Users size={48} />
-          <p>No contacts found. Try adjusting your filters.</p>
-        </div>
-      ) : view === 'table' || !currentSection.pipelineType ? (
-        <TableView contacts={sorted} stages={stages} section={currentSection}
-          onSelect={setSelectedContact} sortBy={sortBy} SortIcon={SortIcon} onSort={handleSort} />
-      ) : (
-        <KanbanView contacts={sorted} stages={stages} onSelect={setSelectedContact} />
+          {loading ? (
+            <div className="empty-state"><p>Loading...</p></div>
+          ) : contacts.length === 0 ? (
+            <div className="empty-state">
+              <Users size={48} />
+              <p>No contacts found. Try adjusting your filters.</p>
+            </div>
+          ) : view === 'table' || !currentSection.pipelineType ? (
+            <TableView contacts={sorted} stages={stages} section={currentSection}
+              onSelect={setSelectedContact} sortBy={sortBy} SortIcon={SortIcon} onSort={handleSort} />
+          ) : (
+            <KanbanView contacts={sorted} stages={stages} onSelect={setSelectedContact} />
+          )}
+        </>
       )}
 
       {selectedContact && (
