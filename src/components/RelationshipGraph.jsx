@@ -131,10 +131,17 @@ export default function RelationshipGraph({ onSelectContact }) {
 
   // D3 visualization
   useEffect(() => {
-    if (!graphData || !dimensions.width || !dimensions.height) return;
+    if (!graphData || !dimensions.width || !dimensions.height) {
+      if (graphData) console.log('Graph waiting for dimensions:', dimensions);
+      return;
+    }
 
     const { nodes: rawNodes, edges: rawEdges } = getFilteredData();
-    if (rawNodes.length === 0) return;
+    if (rawNodes.length === 0) {
+      console.log('Graph: no nodes after filtering');
+      return;
+    }
+    console.log(`Graph rendering: ${rawNodes.length} nodes, ${rawEdges.length} edges, dimensions: ${dimensions.width}x${dimensions.height}`);
 
     // Deep clone for D3 mutation
     const nodes = rawNodes.map(n => ({ ...n }));

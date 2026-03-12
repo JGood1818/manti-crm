@@ -76,12 +76,15 @@ function App() {
   return <AuthenticatedApp userEmail={userEmail} />;
 }
 
-function truncateNextStep(text, maxLen = 40) {
-  if (!text) return '—';
-  if (text.length <= maxLen) return text;
-  // Try to cut at a word boundary
-  const cut = text.lastIndexOf(' ', maxLen);
-  return text.slice(0, cut > 20 ? cut : maxLen) + '...';
+function getNextStepPreview(contact) {
+  // Use the AI-generated 2-5 word summary if available
+  if (contact.next_step_summary) return contact.next_step_summary;
+  if (!contact.next_step) return '—';
+  // Fallback: truncate at word boundary
+  const maxLen = 40;
+  if (contact.next_step.length <= maxLen) return contact.next_step;
+  const cut = contact.next_step.lastIndexOf(' ', maxLen);
+  return contact.next_step.slice(0, cut > 20 ? cut : maxLen) + '...';
 }
 
 function AuthenticatedApp({ userEmail }) {
@@ -370,7 +373,7 @@ function TableView({ contacts, stages, section, onSelect, sortBy, SortIcon, onSo
                 </td>
                 <td>{c.last_interaction_type || '—'}</td>
                 <td className="next-step-cell">
-                  {c.next_step ? truncateNextStep(c.next_step) : '—'}
+                  {getNextStepPreview(c)}
                 </td>
               </tr>
             );
@@ -417,7 +420,7 @@ function KanbanView({ contacts, stages, onSelect }) {
                   </div>
                   {c.next_step && (
                     <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text-secondary)', borderTop: '1px solid var(--border)', paddingTop: 8 }}>
-                      {truncateNextStep(c.next_step, 60)}
+                      {getNextStepPreview(c)}
                     </div>
                   )}
                 </div>

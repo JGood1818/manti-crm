@@ -552,6 +552,8 @@ textarea.next-step-textarea {
   flex-direction: column;
   position: relative;
   overflow: hidden;
+  height: calc(100vh - 56px);
+  min-height: 500px;
 }
 
 .graph-controls {
@@ -721,6 +723,7 @@ textarea.next-step-textarea {
   flex: 1;
   background: var(--bg-secondary);
   position: relative;
+  min-height: 400px;
 }
 .graph-canvas svg {
   display: block;
