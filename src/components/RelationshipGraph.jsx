@@ -589,7 +589,10 @@ export default function RelationshipGraph({ onSelectContact }) {
 
       {/* SVG Canvas */}
       <div ref={containerCallbackRef} className="graph-canvas">
-        <svg ref={svgRef} style={{ width: '100%', height: '100%', display: 'block' }} />
+        <svg ref={svgRef}
+          width={dimensions.width || '100%'}
+          height={dimensions.height || '100%'}
+          style={{ display: 'block' }} />
       </div>
 
       {/* Hover tooltip */}
