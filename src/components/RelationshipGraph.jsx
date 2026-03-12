@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, useCallback } from 'react';
+import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import * as d3 from 'd3';
 import { fetchGraphData, findPath } from '../lib/graphAPI';
 import { Search, ZoomIn, ZoomOut, Maximize2, Filter, X, GitBranch } from 'lucide-react';
@@ -65,17 +65,20 @@ export default function RelationshipGraph({ onSelectContact }) {
     })();
   }, []);
 
-  // Track container dimensions — keep trying until we get real values
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-    let cancelled = false;
-    let rafId;
-    let observer;
+  // Track container dimensions using a callback ref
+  // This fires when the DOM element is actually attached (after loading completes)
+  const observerRef = useRef(null);
+  const containerCallbackRef = useCallback((node) => {
+    // Cleanup previous observer
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+      observerRef.current = null;
+    }
+    containerRef.current = node;
+    if (!node) return;
 
     const updateDimensions = () => {
-      if (cancelled) return;
-      const rect = container.getBoundingClientRect();
+      const rect = node.getBoundingClientRect();
       const w = Math.floor(rect.width);
       const h = Math.floor(rect.height);
       if (w > 0 && h > 0) {
@@ -86,27 +89,13 @@ export default function RelationshipGraph({ onSelectContact }) {
       }
     };
 
-    // RAF loop until we get dimensions (handles CSS layout delay)
-    const pollUntilReady = () => {
-      if (cancelled) return;
-      const rect = container.getBoundingClientRect();
-      if (rect.width > 0 && rect.height > 0) {
-        updateDimensions();
-      } else {
-        rafId = requestAnimationFrame(pollUntilReady);
-      }
-    };
-    pollUntilReady();
+    // Read dimensions immediately
+    updateDimensions();
 
-    // ResizeObserver for ongoing size changes
-    observer = new ResizeObserver(() => updateDimensions());
-    observer.observe(container);
-
-    return () => {
-      cancelled = true;
-      if (rafId) cancelAnimationFrame(rafId);
-      observer?.disconnect();
-    };
+    // Also observe for future resizes
+    const observer = new ResizeObserver(() => updateDimensions());
+    observer.observe(node);
+    observerRef.current = observer;
   }, []);
 
   // Filter data
@@ -586,7 +575,7 @@ export default function RelationshipGraph({ onSelectContact }) {
       )}
 
       {/* SVG Canvas */}
-      <div ref={containerRef} className="graph-canvas">
+      <div ref={containerCallbackRef} className="graph-canvas">
         <svg ref={svgRef} style={{ width: '100%', height: '100%', display: 'block' }} />
       </div>
 
