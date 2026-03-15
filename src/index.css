@@ -881,7 +881,7 @@ textarea.next-step-textarea {
 }
 .sidebar-view-btn:hover { background: #1B5E20; }
 
-/* ── Today's Focus ─────────────────────────────────────────────── */
+/* ── Today's Focus ─────────────────────────────────────────── */
 .focus-wrap {
   max-width: 780px;
   margin: 32px auto;
@@ -1077,3 +1077,127 @@ textarea.next-step-textarea {
   color: var(--text-secondary);
   line-height: 1.5;
 }
+
+/* Focus item footer + comment button */
+.focus-item-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 2px;
+}
+
+.focus-comment-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border: 1px solid rgba(0,0,0,0.1);
+  border-radius: 6px;
+  background: rgba(255,255,255,0.7);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.focus-comment-btn:hover {
+  background: rgba(255,255,255,1);
+  color: var(--text-primary);
+  border-color: rgba(0,0,0,0.18);
+}
+
+/* Saved note display */
+.focus-note-saved {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 8px 10px;
+  background: rgba(255,255,255,0.6);
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.focus-note-text {
+  flex: 1;
+  line-height: 1.5;
+}
+.focus-note-edit-btn {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+  padding: 0;
+}
+.focus-note-edit-btn:hover { text-decoration: underline; }
+
+/* Inline comment editor */
+.focus-comment-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 2px;
+}
+.focus-comment-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: inherit;
+  line-height: 1.5;
+  resize: vertical;
+  outline: none;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+.focus-comment-textarea:focus { border-color: var(--accent); }
+.focus-comment-textarea::placeholder { color: var(--text-tertiary); }
+
+.focus-comment-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.focus-comment-hint {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-right: auto;
+}
+.focus-comment-cancel {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.focus-comment-cancel:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+
+.focus-comment-save {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 14px;
+  border: none;
+  border-radius: 6px;
+  background: var(--accent);
+  font-size: 12px;
+  font-weight: 500;
+  color: white;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.focus-comment-save:hover { background: #1B5E20; }
+.focus-comment-save:disabled { opacity: 0.6; cursor: not-allowed; }
