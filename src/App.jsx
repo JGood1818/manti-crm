@@ -4,11 +4,13 @@ import { fetchContacts, fetchStages, updateContact, createContact, deleteContact
 import { getDaysSinceColor, CATEGORY_COLORS, CATEGORIES } from './lib/constants';
 import { isEmailAllowed, signOut, getSession, onAuthStateChange } from './lib/auth';
 import RelationshipGraph from './components/RelationshipGraph';
+import TodaysFocus from './components/TodaysFocus';
 import LoginPage from './components/LoginPage';
 import AccessDenied from './components/AccessDenied';
 import './index.css';
 
 const SECTIONS = [
+  { id: 'focus', label: "Today's Focus", pipelineType: null, isFocus: true },
   { id: 'sales_bd', label: 'Sales & BD', pipelineType: 'sales_bd' },
   { id: 'investor', label: 'Investor', pipelineType: 'investor' },
   { id: 'all', label: 'All Contacts', pipelineType: null },
@@ -16,41 +18,30 @@ const SECTIONS = [
 ];
 
 function App() {
-  const [authState, setAuthState] = useState('loading'); // 'loading' | 'unauthenticated' | 'denied' | 'authenticated'
+  const [authState, setAuthState] = useState('loading');
   const [userEmail, setUserEmail] = useState(null);
 
   useEffect(() => {
-    // Check existing session on mount
     getSession().then(session => {
       if (session?.user) {
         const email = session.user.email;
         setUserEmail(email);
-        if (isEmailAllowed(email)) {
-          setAuthState('authenticated');
-        } else {
-          setAuthState('denied');
-        }
-      } else {
-        setAuthState('unauthenticated');
-      }
+        if (isEmailAllowed(email)) { setAuthState('authenticated'); }
+        else { setAuthState('denied'); }
+      } else { setAuthState('unauthenticated'); }
     }).catch(() => setAuthState('unauthenticated'));
 
-    // Listen for auth changes (login/logout)
     const subscription = onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {
         const email = session.user.email;
         setUserEmail(email);
-        if (isEmailAllowed(email)) {
-          setAuthState('authenticated');
-        } else {
-          setAuthState('denied');
-        }
+        if (isEmailAllowed(email)) { setAuthState('authenticated'); }
+        else { setAuthState('denied'); }
       } else if (event === 'SIGNED_OUT') {
         setAuthState('unauthenticated');
         setUserEmail(null);
       }
     });
-
     return () => subscription?.unsubscribe();
   }, []);
 
@@ -64,23 +55,14 @@ function App() {
       </div>
     );
   }
-
-  if (authState === 'unauthenticated') {
-    return <LoginPage />;
-  }
-
-  if (authState === 'denied') {
-    return <AccessDenied email={userEmail} />;
-  }
-
+  if (authState === 'unauthenticated') return <LoginPage />;
+  if (authState === 'denied') return <AccessDenied email={userEmail} />;
   return <AuthenticatedApp userEmail={userEmail} />;
 }
 
 function getNextStepPreview(contact) {
-  // Use the AI-generated 2-5 word summary if available
   if (contact.next_step_summary) return contact.next_step_summary;
   if (!contact.next_step) return '—';
-  // Fallback: truncate at word boundary
   const maxLen = 40;
   if (contact.next_step.length <= maxLen) return contact.next_step;
   const cut = contact.next_step.lastIndexOf(' ', maxLen);
@@ -88,7 +70,7 @@ function getNextStepPreview(contact) {
 }
 
 function AuthenticatedApp({ userEmail }) {
-  const [section, setSection] = useState('sales_bd');
+  const [section, setSection] = useState('focus');
   const [view, setView] = useState('table');
   const [contacts, setContacts] = useState([]);
   const [stages, setStages] = useState([]);
@@ -104,6 +86,7 @@ function AuthenticatedApp({ userEmail }) {
   const currentSection = SECTIONS.find(s => s.id === section);
 
   const loadData = useCallback(async () => {
+    if (currentSection.isFocus) return;
     setLoading(true);
     try {
       const filters = { search: search || undefined };
@@ -118,9 +101,7 @@ function AuthenticatedApp({ userEmail }) {
       if (stageFilter) filters.stageId = stageFilter;
       const data = await fetchContacts(filters);
       setContacts(data);
-    } catch (err) {
-      console.error('Load error:', err);
-    }
+    } catch (err) { console.error('Load error:', err); }
     setLoading(false);
   }, [section, search, stageFilter, categoryFilter, currentSection?.pipelineType]);
 
@@ -146,28 +127,19 @@ function AuthenticatedApp({ userEmail }) {
   };
 
   const handleSave = async (id, updates) => {
-    try {
-      await updateContact(id, updates);
-      await loadData();
-      setSelectedContact(null);
-    } catch (err) { console.error('Save error:', err); }
+    try { await updateContact(id, updates); await loadData(); setSelectedContact(null); }
+    catch (err) { console.error('Save error:', err); }
   };
 
   const handleCreate = async (contact) => {
-    try {
-      await createContact(contact);
-      await loadData();
-      setShowAddModal(false);
-    } catch (err) { console.error('Create error:', err); }
+    try { await createContact(contact); await loadData(); setShowAddModal(false); }
+    catch (err) { console.error('Create error:', err); }
   };
 
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this contact?')) return;
-    try {
-      await deleteContact(id);
-      await loadData();
-      setSelectedContact(null);
-    } catch (err) { console.error('Delete error:', err); }
+    try { await deleteContact(id); await loadData(); setSelectedContact(null); }
+    catch (err) { console.error('Delete error:', err); }
   };
 
   const totalContacts = contacts.length;
@@ -199,9 +171,10 @@ function AuthenticatedApp({ userEmail }) {
         </div>
       </header>
 
-      {currentSection.isGraph ? (
+      {currentSection.isFocus ? (
+        <TodaysFocus />
+      ) : currentSection.isGraph ? (
         <RelationshipGraph onSelectContact={(node) => {
-          // Find the full contact data to open detail panel
           const fullContact = contacts.find(c => c.id === node.id);
           if (fullContact) setSelectedContact(fullContact);
         }} />
@@ -258,12 +231,10 @@ function AuthenticatedApp({ userEmail }) {
             <div className="toolbar-right">
               {currentSection.pipelineType && (
                 <div className="view-toggle">
-                  <button className={`view-btn ${view === 'table' ? 'active' : ''}`}
-                    onClick={() => setView('table')}>
+                  <button className={`view-btn ${view === 'table' ? 'active' : ''}`} onClick={() => setView('table')}>
                     <List size={14} /> Table
                   </button>
-                  <button className={`view-btn ${view === 'kanban' ? 'active' : ''}`}
-                    onClick={() => setView('kanban')}>
+                  <button className={`view-btn ${view === 'kanban' ? 'active' : ''}`} onClick={() => setView('kanban')}>
                     <LayoutGrid size={14} /> Board
                   </button>
                 </div>
@@ -294,7 +265,6 @@ function AuthenticatedApp({ userEmail }) {
         <DetailPanel contact={selectedContact} stages={stages} section={currentSection}
           onClose={() => setSelectedContact(null)} onSave={handleSave} onDelete={handleDelete} />
       )}
-
       {showAddModal && (
         <AddContactModal section={currentSection} stages={stages}
           onClose={() => setShowAddModal(false)} onCreate={handleCreate} />
@@ -310,30 +280,16 @@ function TableView({ contacts, stages, section, onSelect, sortBy, SortIcon, onSo
       <table>
         <thead>
           <tr>
-            <th onClick={() => onSort('full_name')} className={sortBy === 'full_name' ? 'sorted' : ''}>
-              Name <SortIcon col="full_name" />
-            </th>
-            <th onClick={() => onSort('company')} className={sortBy === 'company' ? 'sorted' : ''}>
-              Company <SortIcon col="company" />
-            </th>
+            <th onClick={() => onSort('full_name')} className={sortBy === 'full_name' ? 'sorted' : ''}>Name <SortIcon col="full_name" /></th>
+            <th onClick={() => onSort('company')} className={sortBy === 'company' ? 'sorted' : ''}>Company <SortIcon col="company" /></th>
             {isPipeline ? (
-              <th onClick={() => onSort('pipeline_stages')} className={sortBy === 'pipeline_stages' ? 'sorted' : ''}>
-                Stage <SortIcon col="pipeline_stages" />
-              </th>
+              <th onClick={() => onSort('pipeline_stages')} className={sortBy === 'pipeline_stages' ? 'sorted' : ''}>Stage <SortIcon col="pipeline_stages" /></th>
             ) : (
-              <th onClick={() => onSort('category')} className={sortBy === 'category' ? 'sorted' : ''}>
-                Category <SortIcon col="category" />
-              </th>
+              <th onClick={() => onSort('category')} className={sortBy === 'category' ? 'sorted' : ''}>Category <SortIcon col="category" /></th>
             )}
-            <th onClick={() => onSort('last_interaction_date')} className={sortBy === 'last_interaction_date' ? 'sorted' : ''}>
-              Last Contact <SortIcon col="last_interaction_date" />
-            </th>
-            <th onClick={() => onSort('days_since_contact')} className={sortBy === 'days_since_contact' ? 'sorted' : ''}>
-              Days Since <SortIcon col="days_since_contact" />
-            </th>
-            <th onClick={() => onSort('last_interaction_type')} className={sortBy === 'last_interaction_type' ? 'sorted' : ''}>
-              Type <SortIcon col="last_interaction_type" />
-            </th>
+            <th onClick={() => onSort('last_interaction_date')} className={sortBy === 'last_interaction_date' ? 'sorted' : ''}>Last Contact <SortIcon col="last_interaction_date" /></th>
+            <th onClick={() => onSort('days_since_contact')} className={sortBy === 'days_since_contact' ? 'sorted' : ''}>Days Since <SortIcon col="days_since_contact" /></th>
+            <th onClick={() => onSort('last_interaction_type')} className={sortBy === 'last_interaction_type' ? 'sorted' : ''}>Type <SortIcon col="last_interaction_type" /></th>
             <th>Next Step</th>
           </tr>
         </thead>
@@ -350,31 +306,14 @@ function TableView({ contacts, stages, section, onSelect, sortBy, SortIcon, onSo
                 </td>
                 <td>{c.company || '—'}</td>
                 {isPipeline && stage ? (
-                  <td>
-                    <span className="stage-badge" style={{ background: stage.color_hex, color: stage.stage_number >= 6 ? '#fff' : '#1F2937' }}>
-                      <span className="stage-num">{stage.stage_number}</span>
-                      {stage.stage_name}
-                    </span>
-                  </td>
+                  <td><span className="stage-badge" style={{ background: stage.color_hex, color: stage.stage_number >= 6 ? '#fff' : '#1F2937' }}><span className="stage-num">{stage.stage_number}</span>{stage.stage_name}</span></td>
                 ) : !isPipeline ? (
-                  <td>
-                    <span className="category-badge" style={{ background: catColor.bg, color: catColor.text }}>
-                      {c.category}
-                    </span>
-                  </td>
+                  <td><span className="category-badge" style={{ background: catColor.bg, color: catColor.text }}>{c.category}</span></td>
                 ) : <td>—</td>}
                 <td>{c.last_interaction_date || '—'}</td>
-                <td>
-                  {c.days_since_contact != null ? (
-                    <span className="days-badge" style={{ background: daysColor.bg, color: daysColor.text }}>
-                      {c.days_since_contact}d
-                    </span>
-                  ) : '—'}
-                </td>
+                <td>{c.days_since_contact != null ? (<span className="days-badge" style={{ background: daysColor.bg, color: daysColor.text }}>{c.days_since_contact}d</span>) : '—'}</td>
                 <td>{c.last_interaction_type || '—'}</td>
-                <td className="next-step-cell">
-                  {getNextStepPreview(c)}
-                </td>
+                <td className="next-step-cell">{getNextStepPreview(c)}</td>
               </tr>
             );
           })}
@@ -387,18 +326,14 @@ function TableView({ contacts, stages, section, onSelect, sortBy, SortIcon, onSo
 function KanbanView({ contacts, stages, onSelect }) {
   const grouped = {};
   stages.forEach(s => { grouped[s.id] = []; });
-  contacts.forEach(c => {
-    if (c.stage_id && grouped[c.stage_id]) grouped[c.stage_id].push(c);
-  });
-
+  contacts.forEach(c => { if (c.stage_id && grouped[c.stage_id]) grouped[c.stage_id].push(c); });
   return (
     <div className="kanban-container">
       {stages.map(stage => (
         <div key={stage.id} className="kanban-column">
           <div className="kanban-header" style={{ borderColor: stage.color_hex }}>
             <div className="kanban-header-left">
-              <span className="stage-num" style={{ background: stage.color_hex,
-                color: stage.stage_number >= 6 ? '#fff' : '#1F2937' }}>{stage.stage_number}</span>
+              <span className="stage-num" style={{ background: stage.color_hex, color: stage.stage_number >= 6 ? '#fff' : '#1F2937' }}>{stage.stage_number}</span>
               <span className="kanban-stage-name">{stage.stage_name}</span>
             </div>
             <span className="kanban-count">{grouped[stage.id]?.length || 0}</span>
@@ -412,17 +347,9 @@ function KanbanView({ contacts, stages, onSelect }) {
                   {c.company && <div className="kanban-card-company">{c.company}</div>}
                   <div className="kanban-card-meta">
                     <span className="kanban-card-date">{c.last_interaction_date || 'No date'}</span>
-                    {c.days_since_contact != null && (
-                      <span className="days-badge" style={{ background: daysColor.bg, color: daysColor.text, fontSize: 11 }}>
-                        {c.days_since_contact}d
-                      </span>
-                    )}
+                    {c.days_since_contact != null && (<span className="days-badge" style={{ background: daysColor.bg, color: daysColor.text, fontSize: 11 }}>{c.days_since_contact}d</span>)}
                   </div>
-                  {c.next_step && (
-                    <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text-secondary)', borderTop: '1px solid var(--border)', paddingTop: 8 }}>
-                      {getNextStepPreview(c)}
-                    </div>
-                  )}
+                  {c.next_step && (<div style={{ marginTop: 8, fontSize: 11, color: 'var(--text-secondary)', borderTop: '1px solid var(--border)', paddingTop: 8 }}>{getNextStepPreview(c)}</div>)}
                 </div>
               );
             })}
@@ -436,7 +363,6 @@ function KanbanView({ contacts, stages, onSelect }) {
 function DetailPanel({ contact, stages, section, onClose, onSave, onDelete }) {
   const [form, setForm] = useState({ ...contact });
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
-
   return (
     <>
       <div className="panel-overlay" onClick={onClose} />
@@ -450,35 +376,19 @@ function DetailPanel({ contact, stages, section, onClose, onSave, onDelete }) {
         </div>
         <div className="panel-body">
           <div className="field-row">
-            <div className="field-group">
-              <div className="field-label">Full Name</div>
-              <input className="field-input" value={form.full_name || ''} onChange={e => set('full_name', e.target.value)} />
-            </div>
-            <div className="field-group">
-              <div className="field-label">Company</div>
-              <input className="field-input" value={form.company || ''} onChange={e => set('company', e.target.value)} />
-            </div>
+            <div className="field-group"><div className="field-label">Full Name</div><input className="field-input" value={form.full_name || ''} onChange={e => set('full_name', e.target.value)} /></div>
+            <div className="field-group"><div className="field-label">Company</div><input className="field-input" value={form.company || ''} onChange={e => set('company', e.target.value)} /></div>
           </div>
           <div className="field-row">
-            <div className="field-group">
-              <div className="field-label">Role / Title</div>
-              <input className="field-input" value={form.role_title || ''} onChange={e => set('role_title', e.target.value)} />
-            </div>
-            <div className="field-group">
-              <div className="field-label">Email</div>
-              <input className="field-input" type="email" value={form.email || ''} onChange={e => set('email', e.target.value)} />
-            </div>
+            <div className="field-group"><div className="field-label">Role / Title</div><input className="field-input" value={form.role_title || ''} onChange={e => set('role_title', e.target.value)} /></div>
+            <div className="field-group"><div className="field-label">Email</div><input className="field-input" type="email" value={form.email || ''} onChange={e => set('email', e.target.value)} /></div>
           </div>
           <div className="field-row">
-            <div className="field-group">
-              <div className="field-label">Phone</div>
-              <input className="field-input" value={form.phone || ''} onChange={e => set('phone', e.target.value)} />
-            </div>
+            <div className="field-group"><div className="field-label">Phone</div><input className="field-input" value={form.phone || ''} onChange={e => set('phone', e.target.value)} /></div>
             {section.pipelineType && stages.length > 0 && (
               <div className="field-group">
                 <div className="field-label">Pipeline Stage</div>
-                <select className="field-input" value={form.stage_id || ''}
-                  onChange={e => set('stage_id', e.target.value || null)}>
+                <select className="field-input" value={form.stage_id || ''} onChange={e => set('stage_id', e.target.value || null)}>
                   <option value="">— Select —</option>
                   {stages.map(s => <option key={s.id} value={s.id}>{s.stage_number}. {s.stage_name}</option>)}
                 </select>
@@ -488,8 +398,7 @@ function DetailPanel({ contact, stages, section, onClose, onSave, onDelete }) {
           {!section.pipelineType && (
             <div className="field-group">
               <div className="field-label">Category</div>
-              <select className="field-input" value={form.category || ''}
-                onChange={e => set('category', e.target.value)}>
+              <select className="field-input" value={form.category || ''} onChange={e => set('category', e.target.value)}>
                 {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
@@ -498,84 +407,42 @@ function DetailPanel({ contact, stages, section, onClose, onSave, onDelete }) {
             <div className="field-group">
               <div className="field-label"><Globe size={13} style={{ marginRight: 4, verticalAlign: -2 }} />Website</div>
               <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                <input className="field-input" value={form.website || ''} onChange={e => set('website', e.target.value)}
-                  placeholder="https://company.com" style={{ flex: 1 }} />
-                {form.website && (
-                  <a href={form.website.startsWith('http') ? form.website : `https://${form.website}`}
-                    target="_blank" rel="noopener noreferrer"
-                    style={{ color: 'var(--accent)', flexShrink: 0 }}>
-                    <ExternalLink size={16} />
-                  </a>
-                )}
+                <input className="field-input" value={form.website || ''} onChange={e => set('website', e.target.value)} placeholder="https://company.com" style={{ flex: 1 }} />
+                {form.website && <a href={form.website.startsWith('http') ? form.website : `https://${form.website}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', flexShrink: 0 }}><ExternalLink size={16} /></a>}
               </div>
             </div>
             <div className="field-group">
               <div className="field-label"><Linkedin size={13} style={{ marginRight: 4, verticalAlign: -2 }} />LinkedIn</div>
               <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                <input className="field-input" value={form.linkedin || ''} onChange={e => set('linkedin', e.target.value)}
-                  placeholder="https://linkedin.com/in/..." style={{ flex: 1 }} />
-                {form.linkedin && (
-                  <a href={form.linkedin.startsWith('http') ? form.linkedin : `https://${form.linkedin}`}
-                    target="_blank" rel="noopener noreferrer"
-                    style={{ color: '#0A66C2', flexShrink: 0 }}>
-                    <ExternalLink size={16} />
-                  </a>
-                )}
+                <input className="field-input" value={form.linkedin || ''} onChange={e => set('linkedin', e.target.value)} placeholder="https://linkedin.com/in/..." style={{ flex: 1 }} />
+                {form.linkedin && <a href={form.linkedin.startsWith('http') ? form.linkedin : `https://${form.linkedin}`} target="_blank" rel="noopener noreferrer" style={{ color: '#0A66C2', flexShrink: 0 }}><ExternalLink size={16} /></a>}
               </div>
             </div>
           </div>
-          <div className="field-group">
-            <div className="field-label">Next Step / Follow-up</div>
-            <textarea className="field-input next-step-textarea" value={form.next_step || ''} onChange={e => set('next_step', e.target.value)}
-              placeholder="e.g., Schedule follow-up demo..." />
-          </div>
-          <div className="field-group">
-            <div className="field-label">Your Notes</div>
-            <textarea className="field-input" value={form.user_notes || ''} onChange={e => set('user_notes', e.target.value)}
-              placeholder="Your personal notes..." />
-          </div>
+          <div className="field-group"><div className="field-label">Next Step / Follow-up</div><textarea className="field-input next-step-textarea" value={form.next_step || ''} onChange={e => set('next_step', e.target.value)} placeholder="e.g., Schedule follow-up demo..." /></div>
+          <div className="field-group"><div className="field-label">Your Notes</div><textarea className="field-input" value={form.user_notes || ''} onChange={e => set('user_notes', e.target.value)} placeholder="Your personal notes..." /></div>
           {form.ai_notes && (
             <div className="field-group">
               <div className="field-label">AI-Detected Activity</div>
-              <div style={{ padding: 12, background: 'var(--bg-secondary)', borderRadius: 8, fontSize: 13, color: 'var(--text-secondary)', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>
-                {form.ai_notes}
-              </div>
+              <div style={{ padding: 12, background: 'var(--bg-secondary)', borderRadius: 8, fontSize: 13, color: 'var(--text-secondary)', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{form.ai_notes}</div>
             </div>
           )}
           <div className="field-row" style={{ marginTop: 16 }}>
-            <div className="field-group">
-              <div className="field-label">Last Interaction</div>
-              <div className="field-value">{contact.last_interaction_date || '—'}</div>
-            </div>
+            <div className="field-group"><div className="field-label">Last Interaction</div><div className="field-value">{contact.last_interaction_date || '—'}</div></div>
             <div className="field-group">
               <div className="field-label">Days Since Contact</div>
               <div className="field-value">
                 {contact.days_since_contact != null ? (
-                  <span className="days-badge" style={{
-                    ...(() => { const c = getDaysSinceColor(contact.days_since_contact); return { background: c.bg, color: c.text }; })()
-                  }}>{contact.days_since_contact} days</span>
+                  <span className="days-badge" style={{ ...(() => { const c = getDaysSinceColor(contact.days_since_contact); return { background: c.bg, color: c.text }; })() }}>{contact.days_since_contact} days</span>
                 ) : '—'}
               </div>
             </div>
           </div>
         </div>
         <div className="panel-footer">
-          <button className="btn-secondary" style={{ color: 'var(--danger)', borderColor: 'var(--danger)' }}
-            onClick={() => onDelete(contact.id)}>Delete</button>
+          <button className="btn-secondary" style={{ color: 'var(--danger)', borderColor: 'var(--danger)' }} onClick={() => onDelete(contact.id)}>Delete</button>
           <button className="btn-secondary" onClick={onClose}>Cancel</button>
-          <button className="btn-primary" onClick={() => onSave(contact.id, {
-            full_name: form.full_name,
-            company: form.company,
-            role_title: form.role_title,
-            email: form.email,
-            phone: form.phone,
-            website: form.website,
-            linkedin: form.linkedin,
-            stage_id: form.stage_id,
-            category: form.category,
-            next_step: form.next_step,
-            user_notes: form.user_notes,
-          })}>Save Changes</button>
+          <button className="btn-primary" onClick={() => onSave(contact.id, { full_name: form.full_name, company: form.company, role_title: form.role_title, email: form.email, phone: form.phone, website: form.website, linkedin: form.linkedin, stage_id: form.stage_id, category: form.category, next_step: form.next_step, user_notes: form.user_notes })}>Save Changes</button>
         </div>
       </div>
     </>
@@ -591,46 +458,22 @@ function AddContactModal({ section, stages, onClose, onCreate }) {
     next_step: '', user_notes: '', source: 'manual',
   });
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
-
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2>Add New Contact</h2>
-          <button className="panel-close" onClick={onClose}><X size={20} /></button>
-        </div>
+        <div className="modal-header"><h2>Add New Contact</h2><button className="panel-close" onClick={onClose}><X size={20} /></button></div>
         <div className="modal-body">
           <div className="field-row">
-            <div className="field-group">
-              <div className="field-label">Full Name *</div>
-              <input className="field-input" value={form.full_name} onChange={e => set('full_name', e.target.value)} autoFocus />
-            </div>
-            <div className="field-group">
-              <div className="field-label">Company</div>
-              <input className="field-input" value={form.company} onChange={e => set('company', e.target.value)} />
-            </div>
+            <div className="field-group"><div className="field-label">Full Name *</div><input className="field-input" value={form.full_name} onChange={e => set('full_name', e.target.value)} autoFocus /></div>
+            <div className="field-group"><div className="field-label">Company</div><input className="field-input" value={form.company} onChange={e => set('company', e.target.value)} /></div>
           </div>
           <div className="field-row">
-            <div className="field-group">
-              <div className="field-label">Role / Title</div>
-              <input className="field-input" value={form.role_title} onChange={e => set('role_title', e.target.value)} />
-            </div>
-            <div className="field-group">
-              <div className="field-label">Email</div>
-              <input className="field-input" type="email" value={form.email} onChange={e => set('email', e.target.value)} />
-            </div>
+            <div className="field-group"><div className="field-label">Role / Title</div><input className="field-input" value={form.role_title} onChange={e => set('role_title', e.target.value)} /></div>
+            <div className="field-group"><div className="field-label">Email</div><input className="field-input" type="email" value={form.email} onChange={e => set('email', e.target.value)} /></div>
           </div>
           <div className="field-row">
-            <div className="field-group">
-              <div className="field-label">Website</div>
-              <input className="field-input" value={form.website} onChange={e => set('website', e.target.value)}
-                placeholder="https://company.com" />
-            </div>
-            <div className="field-group">
-              <div className="field-label">LinkedIn</div>
-              <input className="field-input" value={form.linkedin} onChange={e => set('linkedin', e.target.value)}
-                placeholder="https://linkedin.com/in/..." />
-            </div>
+            <div className="field-group"><div className="field-label">Website</div><input className="field-input" value={form.website} onChange={e => set('website', e.target.value)} placeholder="https://company.com" /></div>
+            <div className="field-group"><div className="field-label">LinkedIn</div><input className="field-input" value={form.linkedin} onChange={e => set('linkedin', e.target.value)} placeholder="https://linkedin.com/in/..." /></div>
           </div>
           {section.pipelineType && stages.length > 0 && (
             <div className="field-group">
@@ -649,20 +492,12 @@ function AddContactModal({ section, stages, onClose, onCreate }) {
               </select>
             </div>
           )}
-          <div className="field-group">
-            <div className="field-label">Next Step / Follow-up</div>
-            <input className="field-input" value={form.next_step} onChange={e => set('next_step', e.target.value)} />
-          </div>
-          <div className="field-group">
-            <div className="field-label">Notes</div>
-            <textarea className="field-input" value={form.user_notes} onChange={e => set('user_notes', e.target.value)} />
-          </div>
+          <div className="field-group"><div className="field-label">Next Step / Follow-up</div><input className="field-input" value={form.next_step} onChange={e => set('next_step', e.target.value)} /></div>
+          <div className="field-group"><div className="field-label">Notes</div><textarea className="field-input" value={form.user_notes} onChange={e => set('user_notes', e.target.value)} /></div>
         </div>
         <div className="modal-footer">
           <button className="btn-secondary" onClick={onClose}>Cancel</button>
-          <button className="btn-primary" disabled={!form.full_name.trim()} onClick={() => onCreate(form)}>
-            <Plus size={14} /> Add Contact
-          </button>
+          <button className="btn-primary" disabled={!form.full_name.trim()} onClick={() => onCreate(form)}><Plus size={14} /> Add Contact</button>
         </div>
       </div>
     </div>
